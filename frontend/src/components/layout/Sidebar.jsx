@@ -12,6 +12,7 @@ import Badge from '../ui/Badge';
 import api from '../../utils/api';
 import { getSocket, connectSocket } from '../../socket/socket';
 import { toast } from 'react-hot-toast';
+import { playNotificationSound } from '../../utils/sound';
 
 const navItems = [
   { icon: MdDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -41,7 +42,12 @@ const Sidebar = ({ children }) => {
     const socket = connectSocket(user._id);
     socket.on(`notification:${user._id}`, (notification) => {
       setUnreadCount(prev => prev + 1);
-      toast(notification.message, { icon: '🔔' });
+      playNotificationSound();
+      toast(notification.message, {
+        icon: '🔔',
+        duration: 5000,
+        style: { background: '#1e1e2e', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' },
+      });
     });
 
     return () => socket.off(`notification:${user._id}`);
