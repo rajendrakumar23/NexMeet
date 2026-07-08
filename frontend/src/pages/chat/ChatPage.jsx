@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import EmojiPicker from 'emoji-picker-react';
 import api from '../../utils/api';
-import { getSocket } from '../../socket/socket';
+import { getSocket, connectSocket } from '../../socket/socket';
 import useAuthStore from '../../store/authStore';
 import useChatStore from '../../store/chatStore';
 import Sidebar from '../../components/layout/Sidebar';
@@ -17,7 +17,7 @@ import Modal from '../../components/ui/Modal';
 const ChatPage = () => {
   const { user } = useAuthStore();
   const { conversations, activeConversation, messages, typingUsers, fetchConversations, setActiveConversation, fetchMessages, addMessage, updateMessage, deleteMessage, setTyping } = useChatStore();
-  const socket = getSocket();
+  const socket = connectSocket(user?._id);
 
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
