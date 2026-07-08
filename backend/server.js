@@ -34,14 +34,16 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
+const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').trim();
+
 // Socket.io setup
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', methods: ['GET', 'POST'] },
+  cors: { origin: CLIENT_URL, methods: ['GET', 'POST'] },
 });
 
 // Middleware
 app.use(helmet({ crossOriginEmbedderPolicy: false }));
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(safeMongoSanitize({ allowDots: true, replaceWith: '_' }));
