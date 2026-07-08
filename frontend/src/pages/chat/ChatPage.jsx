@@ -23,6 +23,7 @@ const ChatPage = () => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchUsers, setSearchUsers] = useState([]);
+  const [friendsList, setFriendsList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingMessage, setEditingMessage] = useState(null);
   const [editContent, setEditContent] = useState('');
@@ -33,6 +34,8 @@ const ChatPage = () => {
 
   useEffect(() => {
     fetchConversations();
+    // Load friends list for new chat
+    api.get('/auth/me').then(({ data }) => setFriendsList(data.user.friends || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -367,7 +370,7 @@ const ChatPage = () => {
       </div>
 
       {/* New Chat Modal */}
-      <Modal isOpen={showNewChat} onClose={() => setShowNewChat(false)} title="New Message">
+      <Modal isOpen={showNewChat} onClose={() => { setShowNewChat(false); setSearchQuery(''); setSearchUsers([]); }} title="New Message">
         <div className="space-y-4">
           <input
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -376,7 +379,23 @@ const ChatPage = () => {
             onChange={e => searchForUsers(e.target.value)}
           />
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {searchUsers.map(u => (
+            {/* Show friends when no search */}
+            {searchQuery.length < 2 && friendsList.map(u => (
+              <motion.button
+                key={u._id}
+                whileHover={{ x: 4 }}
+                onClick={() => startConversation(u._id)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <Avatar src={u.avatar} name={u.name} size="md" online={u.isOnline} />
+                <div>
+                  <p className="text-white font-medium text-sm">{u.name}</p>
+                  <p className="text-slate-500 text-xs">Friend</p>
+                </div>
+              </motion.button>
+            ))}
+            {/* Show search results */}
+            {searchQuery.length >= 2 && searchUsers.map(u => (
               <motion.button
                 key={u._id}
                 whileHover={{ x: 4 }}
