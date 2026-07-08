@@ -243,4 +243,4 @@ To enable real AI, add your `OPENAI_API_KEY` to backend `.env`.
 
 ## 📄 License
 
-MIT © 2024 NexMeet
+MIT © 2026 NexMeet
