@@ -83,7 +83,10 @@ exports.changePassword = async (req, res) => {
 
 // @GET /api/auth/me
 exports.getMe = async (req, res) => {
-  res.json({ success: true, user: req.user });
+  const user = await User.findById(req.user._id)
+    .populate('friends', 'name avatar isOnline')
+    .populate('friendRequests', 'name avatar email');
+  res.json({ success: true, user });
 };
 
 // @PUT /api/auth/update-profile

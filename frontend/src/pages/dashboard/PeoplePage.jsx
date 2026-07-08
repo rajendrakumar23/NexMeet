@@ -14,9 +14,22 @@ const PeoplePage = () => {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [friends, setFriends] = useState(user?.friends || []);
-  const [requests, setRequests] = useState(user?.friendRequests || []);
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [tab, setTab] = useState('search');
+
+  useEffect(() => {
+    fetchFriendsAndRequests();
+  }, []);
+
+  const fetchFriendsAndRequests = async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      const me = data.user;
+      setFriends(me.friends || []);
+      setRequests(me.friendRequests || []);
+    } catch {}
+  };
 
   const searchUsers = async (q) => {
     setSearchQuery(q);

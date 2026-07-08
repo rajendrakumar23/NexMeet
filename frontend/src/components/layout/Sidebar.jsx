@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,6 +9,9 @@ import {
 import useAuthStore from '../../store/authStore';
 import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
+import api from '../../utils/api';
+import { getSocket, connectSocket } from '../../socket/socket';
+import { toast } from 'react-hot-toast';
 
 const navItems = [
   { icon: MdDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -22,9 +25,27 @@ const navItems = [
 const Sidebar = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+    // Fetch unread notifications count
+    api.get('/users/notifications').then(({ data }) => {
+      setUnreadCount(data.notifications.filter(n => !n.read).length);
+    }).catch(() => {});
+
+    // Listen for real-time notifications
+    const socket = connectSocket(user._id);
+    socket.on(`notification:${user._id}`, (notification) => {
+      setUnreadCount(prev => prev + 1);
+      toast(notification.message, { icon: '🔔' });
+    });
+
+    return () => socket.off(`notification:${user._id}`);
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -151,9 +172,13 @@ const Sidebar = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+            <Link to="/people" className="relative p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors" onClick={() => setUnreadCount(0)}>
               <MdNotifications size={22} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
             <Link to="/profile">
               <Avatar src={user?.avatar} name={user?.name} size="sm" online={true} />
