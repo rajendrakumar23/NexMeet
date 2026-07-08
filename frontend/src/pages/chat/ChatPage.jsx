@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdSend, MdAdd, MdSearch, MdAttachFile, MdEmojiEmotions, MdEdit, MdDelete, MdCheck, MdDoneAll } from 'react-icons/md';
-import { BsMicFill } from 'react-icons/bs';
+import { MdSend, MdAdd, MdSearch, MdAttachFile, MdEmojiEmotions, MdEdit, MdDelete, MdCheck, MdDoneAll, MdVideoCall } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import EmojiPicker from 'emoji-picker-react';
@@ -13,9 +13,11 @@ import Sidebar from '../../components/layout/Sidebar';
 import Avatar from '../../components/ui/Avatar';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
+import { playNotificationSound } from '../../utils/sound';
 
 const ChatPage = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const { conversations, activeConversation, messages, typingUsers, fetchConversations, setActiveConversation, fetchMessages, addMessage, updateMessage, deleteMessage, setTyping } = useChatStore();
   const socket = connectSocket(user?._id);
 
@@ -53,7 +55,11 @@ const ChatPage = () => {
   useEffect(() => {
     socket.on('chat:message', (msg) => {
       if (msg.conversation === activeConversation?._id) {
-        addMessage(msg);
+        // Sirf doosre ka message add karo — apna message sendMessage mein already add ho gaya
+        if (msg.sender?._id !== user._id) {
+          addMessage(msg);
+          playNotificationSound();
+        }
       }
     });
 
@@ -143,7 +149,24 @@ const ChatPage = () => {
     setShowNewChat(false);
   };
 
-  const getOtherParticipant = (conv) => conv.participants?.find(p => p._id !== user._id);
+  const navigate = useNavigate();
+
+  const startVideoCallFromChat = async () => {
+    const other = getOtherParticipant(activeConversation);
+    try {
+      const { data } = await api.post('/meetings/create', {
+        title: `Call with ${other?.name || 'User'}`,
+        type: 'instant',
+      });
+      // Send meeting link as message
+      await api.post('/chat/messages', {
+        conversationId: activeConversation._id,
+        content: `📹 Video call started! Join: ${window.location.origin}/meeting/${data.meeting.meetingId}`,
+        type: 'text',
+      });
+      navigate(`/meeting/${data.meeting.meetingId}`);
+    } catch { toast.error('Failed to start video call'); }
+  };
 
   const isTyping = activeConversation && Object.entries(typingUsers).some(([key, val]) => key.startsWith(activeConversation._id) && val);
 
@@ -154,7 +177,7 @@ const ChatPage = () => {
 
   return (
     <Sidebar>
-      <div className="h-[calc(100vh-8rem)] flex rounded-2xl overflow-hidden glass border border-white/10">
+      <div className="flex rounded-2xl overflow-hidden glass border border-white/10" style={{ height: 'calc(100dvh - 8rem)' }}>
         {/* Conversations List */}
         <div className="w-80 shrink-0 border-r border-white/10 flex flex-col">
           <div className="p-4 border-b border-white/10">
@@ -222,10 +245,17 @@ const ChatPage = () => {
                 return (
                   <>
                     <Avatar src={other?.avatar} name={other?.name || activeConversation.groupName} size="md" online={other?.isOnline} />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-white font-semibold">{activeConversation.isGroup ? activeConversation.groupName : other?.name}</p>
                       <p className="text-xs text-slate-500">{other?.isOnline ? 'Online' : 'Offline'}</p>
                     </div>
+                    <button
+                      onClick={startVideoCallFromChat}
+                      className="p-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400 hover:text-white transition-all"
+                      title="Start video call"
+                    >
+                      <MdVideoCall size={22} />
+                    </button>
                   </>
                 );
               })()}

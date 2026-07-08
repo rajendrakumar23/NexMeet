@@ -38,8 +38,9 @@ const Sidebar = ({ children }) => {
       setUnreadCount(data.notifications.filter(n => !n.read).length);
     }).catch(() => {});
 
-    // Listen for real-time notifications
     const socket = connectSocket(user._id);
+
+    // Friend request / general notifications
     socket.on(`notification:${user._id}`, (notification) => {
       setUnreadCount(prev => prev + 1);
       playNotificationSound();
@@ -50,7 +51,38 @@ const Sidebar = ({ children }) => {
       });
     });
 
-    return () => socket.off(`notification:${user._id}`);
+    // Incoming message notification (sirf tab jab chat page pe nahi hain)
+    socket.on('chat:message', (msg) => {
+      if (msg.sender?._id === user._id) return;
+      if (window.location.pathname === '/chat') return;
+      playNotificationSound();
+      toast.custom((t) => (
+        <div
+          onClick={() => {
+            navigate('/chat');
+            toast.dismiss(t.id);
+          }}
+          className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer ${
+            t.visible ? 'animate-enter' : 'animate-leave'
+          }`}
+          style={{ background: '#1e1e2e', border: '1px solid rgba(99,102,241,0.4)', minWidth: '280px' }}
+        >
+          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0">
+            <span className="text-lg">💬</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-semibold truncate">{msg.sender?.name || 'Someone'}</p>
+            <p className="text-slate-400 text-xs truncate">{msg.content || 'Sent a message'}</p>
+          </div>
+          <span className="text-indigo-400 text-xs shrink-0">Tap to open</span>
+        </div>
+      ), { duration: 5000 });
+    });
+
+    return () => {
+      socket.off(`notification:${user._id}`);
+      socket.off('chat:message');
+    };
   }, [user]);
 
   const handleLogout = async () => {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MdPersonAdd, MdSearch, MdCheck, MdClose } from 'react-icons/md';
+import { MdPersonAdd, MdSearch, MdCheck, MdClose, MdChat, MdVideoCall } from 'react-icons/md';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import useAuthStore from '../../store/authStore';
 import Sidebar from '../../components/layout/Sidebar';
@@ -12,22 +13,20 @@ import Badge from '../../components/ui/Badge';
 
 const PeoplePage = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
   const [tab, setTab] = useState('search');
 
-  useEffect(() => {
-    fetchFriendsAndRequests();
-  }, []);
+  useEffect(() => { fetchFriendsAndRequests(); }, []);
 
   const fetchFriendsAndRequests = async () => {
     try {
       const { data } = await api.get('/auth/me');
-      const me = data.user;
-      setFriends(me.friends || []);
-      setRequests(me.friendRequests || []);
+      setFriends(data.user.friends || []);
+      setRequests(data.user.friendRequests || []);
     } catch {}
   };
 
@@ -56,12 +55,27 @@ const PeoplePage = () => {
     } catch { toast.error('Failed to accept request'); }
   };
 
+  const openChat = async (friendId) => {
+    try {
+      await api.post('/chat/conversations', { participantId: friendId });
+      navigate('/chat');
+    } catch { navigate('/chat'); }
+  };
+
+  const startVideoCall = async (friend) => {
+    try {
+      const { data } = await api.post('/meetings/create', {
+        title: `Call with ${friend.name}`,
+        type: 'instant',
+      });
+      navigate(`/meeting/${data.meeting.meetingId}`);
+    } catch { toast.error('Failed to start call'); }
+  };
+
   return (
     <Sidebar>
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-white">People</h1>
-        </div>
+        <h1 className="text-xl font-bold text-white">People</h1>
 
         {/* Tabs */}
         <div className="flex gap-2">
@@ -117,13 +131,25 @@ const PeoplePage = () => {
               <p className="text-slate-500 text-sm col-span-full text-center py-12">No friends yet. Search for people to connect!</p>
             ) : (
               friends.map(f => (
-                <Card key={f._id || f} hover className="flex items-center gap-3">
-                  <Avatar src={f.avatar} name={f.name} size="md" online={f.isOnline} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm">{f.name || 'Friend'}</p>
-                    <Badge variant={f.isOnline ? 'success' : 'default'} className="text-xs">{f.isOnline ? 'Online' : 'Offline'}</Badge>
-                  </div>
-                </Card>
+                <motion.div key={f._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card hover className="flex items-center gap-3">
+                    <Avatar src={f.avatar} name={f.name} size="md" online={f.isOnline} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm">{f.name}</p>
+                      <Badge variant={f.isOnline ? 'success' : 'default'} className="text-xs">
+                        {f.isOnline ? 'Online' : 'Offline'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => openChat(f._id)} title="Chat">
+                        <MdChat size={17} />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => startVideoCall(f)} title="Video Call">
+                        <MdVideoCall size={18} />
+                      </Button>
+                    </div>
+                  </Card>
+                </motion.div>
               ))
             )}
           </div>
