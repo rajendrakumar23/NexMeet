@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
 import {
   MdMic, MdMicOff, MdVideocam, MdVideocamOff, MdScreenShare, MdStopScreenShare,
   MdCallEnd, MdChat, MdPeople, MdPanTool, MdMoreVert, MdContentCopy, MdClose,
@@ -18,6 +18,40 @@ import Badge from '../../components/ui/Badge';
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '👏', '🎉'];
 
+// WebRTC Configuration
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+};
+
+// Remote Video Component
+const RemoteVideo = ({ peer, peerId }) => {
+  const videoRef = useRef(null);
+  const isPresent = useIsPresent();
+
+  useEffect(() => {
+    peer.on('stream', (stream) => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    });
+  }, [peer]);
+
+  useEffect(() => {
+    if (!isPresent) {
+      // Optional: Add exit animations or cleanup
+    }
+  }, [isPresent]);
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] group">
+      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+    </div>
+  );
+};
+
 const MeetingRoom = () => {
   const { meetingId } = useParams();
   const navigate = useNavigate();
@@ -26,6 +60,7 @@ const MeetingRoom = () => {
 
   // State
   const [meeting, setMeeting] = useState(null);
+  // We will now store peer connections instead of just user info
   const [participants, setParticipants] = useState([]);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -43,7 +78,7 @@ const MeetingRoom = () => {
   const localVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
-  const peersRef = useRef({});
+  const peersRef = useRef({}); // This will store all RTCPeerConnection objects
   const chatEndRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -53,7 +88,7 @@ const MeetingRoom = () => {
       try {
         const { data } = await api.post(`/meetings/join/${meetingId}`, {});
         setMeeting(data.meeting);
-        setParticipants(data.meeting.participants || []);
+        // Participants will be populated via socket events
 
         // Get user media
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -61,7 +96,7 @@ const MeetingRoom = () => {
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
         // Join socket room
-        socket.emit('meeting:join', { meetingId, user: { _id: user._id, name: user.name, avatar: user.avatar } });
+        socket.emit('meeting:join', { meetingId, user: { _id: user._id, name: user.name, avatar: user.avatar, handRaised: false } });
 
         // Start timer
         timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
@@ -77,15 +112,70 @@ const MeetingRoom = () => {
     };
   }, [meetingId]);
 
+  // Function to create a peer connection and add stream
+  const createPeer = useCallback((targetUserId, initiator) => {
+    const peer = new RTCPeerConnection(ICE_SERVERS);
+
+    peer.addStream(localStreamRef.current);
+
+    peer.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('webrtc:ice-candidate', {
+          target: targetUserId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    peer.ontrack = (event) => {
+      // This is where we will receive the remote stream, but we handle it in the RemoteVideo component
+      // For simplicity, we'll re-render participants to attach the stream
+      setParticipants(prev => prev.map(p => p.userId === targetUserId ? { ...p, stream: event.streams[0] } : p));
+    };
+
+    if (initiator) {
+      peer.createOffer()
+        .then(offer => peer.setLocalDescription(offer))
+        .then(() => {
+          socket.emit('webrtc:offer', {
+            target: targetUserId,
+            offer: peer.localDescription,
+          });
+        });
+    }
+
+    peersRef.current[targetUserId] = peer;
+    return peer;
+  }, [socket]);
+
   // Socket events
   useEffect(() => {
     socket.on('meeting:user-joined', ({ user: joinedUser }) => {
-      setParticipants(prev => [...prev.filter(p => p._id !== joinedUser._id), joinedUser]);
+      if (joinedUser._id === user._id) return;
       toast(`${joinedUser.name} joined`, { icon: '👋' });
+      const peer = createPeer(joinedUser._id, true);
+      setParticipants(prev => [...prev, { userId: joinedUser._id, user: joinedUser, peer }]);
+    });
+
+    socket.on('webrtc:offer', ({ from, offer }) => {
+      const peer = createPeer(from, false);
+      peer.setRemoteDescription(new RTCSessionDescription(offer))
+        .then(() => peer.createAnswer())
+        .then(answer => peer.setLocalDescription(answer))
+        .then(() => {
+          socket.emit('webrtc:answer', {
+            target: from,
+            answer: peer.localDescription,
+          });
+        });
+    });
+
+    socket.on('webrtc:answer', ({ from, answer }) => {
+      peersRef.current[from]?.setRemoteDescription(new RTCSessionDescription(answer));
     });
 
     socket.on('meeting:user-left', ({ userId }) => {
-      setParticipants(prev => prev.filter(p => p._id !== userId));
+      setParticipants(prev => prev.filter(p => p.userId !== userId));
     });
 
     socket.on('meeting:chat', (msg) => {
@@ -99,7 +189,7 @@ const MeetingRoom = () => {
     });
 
     socket.on('meeting:raise-hand', ({ userId, raised }) => {
-      setParticipants(prev => prev.map(p => p._id === userId ? { ...p, handRaised: raised } : p));
+      setParticipants(prev => prev.map(p => p.userId === userId ? { ...p, user: { ...p.user, handRaised: raised } } : p));
     });
 
     socket.on('meeting:ended', () => {
@@ -115,12 +205,19 @@ const MeetingRoom = () => {
       }
     });
 
+    socket.on('webrtc:ice-candidate', ({ from, candidate }) => {
+      peersRef.current[from]?.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
     return () => {
       socket.off('meeting:user-joined');
       socket.off('meeting:user-left');
       socket.off('meeting:chat');
       socket.off('meeting:reaction');
       socket.off('meeting:raise-hand');
+      socket.off('webrtc:offer');
+      socket.off('webrtc:answer');
+      socket.off('webrtc:ice-candidate');
       socket.off('meeting:ended');
       socket.off('meeting:mute-user');
     };
@@ -135,6 +232,10 @@ const MeetingRoom = () => {
     clearInterval(timerRef.current);
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    Object.values(peersRef.current).forEach(peer => peer.close());
+    peersRef.current = {};
+    setParticipants([]);
+
     socket.emit('meeting:leave', { meetingId, userId: user._id });
   };
 
@@ -233,10 +334,10 @@ const MeetingRoom = () => {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-red-500 rounded-full" />
             <span className="text-red-400 text-xs font-mono">{formatTime(duration)}</span>
           </div>
-          <Badge variant="info">{participants.length} participants</Badge>
+          <Badge variant="info">{participants.length + 1} participants</Badge>
         </div>
       </div>
 
@@ -245,10 +346,10 @@ const MeetingRoom = () => {
         {/* Video Grid */}
         <div className="flex-1 p-4 overflow-hidden">
           <div className={`h-full grid gap-3 ${
-            participants.length <= 1 ? 'grid-cols-1' :
-            participants.length <= 2 ? 'grid-cols-2' :
-            participants.length <= 4 ? 'grid-cols-2' :
-            participants.length <= 6 ? 'grid-cols-3' : 'grid-cols-4'
+            participants.length < 1 ? 'grid-cols-1' :
+            participants.length < 2 ? 'grid-cols-2' :
+            participants.length < 4 ? 'grid-cols-2' :
+            participants.length < 6 ? 'grid-cols-3' : 'grid-cols-4'
           }`}>
             {/* Local Video */}
             <div className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] group">
@@ -273,17 +374,17 @@ const MeetingRoom = () => {
             </div>
 
             {/* Remote Participants (placeholder tiles) */}
-            {participants.filter(p => p._id !== user?._id).map((p) => (
-              <div key={p._id} className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] flex items-center justify-center">
-                <Avatar src={p.avatar} name={p.name} size="xl" />
+            {participants.map(({ userId, user: pUser, peer, stream }) => (
+              <div key={userId} className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] flex items-center justify-center">
+                {stream ? <video srcObject={stream} autoPlay playsInline className="w-full h-full object-cover" /> : <Avatar src={pUser.avatar} name={pUser.name} size="xl" />}
                 <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                  <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-full">{p.name}</span>
-                  {p.handRaised && <span>✋</span>}
+                  <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-full">{pUser.name}</span>
+                  {pUser.handRaised && <span>✋</span>}
                 </div>
                 {isHost && (
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: p._id })}
+                      onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })}
                       className="p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-colors"
                     >
                       <MdMicOff size={14} />
@@ -313,16 +414,24 @@ const MeetingRoom = () => {
 
               {activePanel === 'people' && (
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {participants.map(p => (
-                    <div key={p._id} className="flex items-center justify-between">
+                  {/* Add self to participants list */}
+                  {[
+                    { userId: user._id, user: { ...user, handRaised } },
+                    ...participants
+                  ].map(({ userId, user: pUser }) => (
+                    <div key={userId} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar src={p.avatar} name={p.name} size="sm" online={true} />
+                        <Avatar src={pUser.avatar} name={pUser.name} size="sm" online={true} />
                         <div>
-                          <p className="text-white text-sm font-medium">{p.name} {p._id === user._id && '(You)'}</p>
-                          {meeting?.host?._id === p._id && <Badge variant="info" className="text-xs">Host</Badge>}
+                          <p className="text-white text-sm font-medium">{pUser.name} {userId === user._id && '(You)'}</p>
+                          {meeting?.host?._id === userId && <Badge variant="info" className="text-xs">Host</Badge>}
                         </div>
                       </div>
-                      {p.handRaised && <span>✋</span>}
+                      <div className="flex items-center gap-2">
+                        {pUser.handRaised && <span>✋</span>}
+                        {/* Mute button for host */}
+                        {isHost && userId !== user._id && <button onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })} className="text-slate-400 hover:text-red-400"><MdMicOff size={16} /></button>}
+                      </div>
                     </div>
                   ))}
                 </div>
