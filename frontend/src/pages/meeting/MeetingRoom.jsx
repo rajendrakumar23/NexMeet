@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
+import { 
   MdMic, MdMicOff, MdVideocam, MdVideocamOff, MdScreenShare, MdStopScreenShare,
   MdCallEnd, MdChat, MdPeople, MdPanTool, MdMoreVert, MdContentCopy, MdClose,
   MdSend, MdEmojiEmotions, MdPushPin, MdInfoOutline
 } from 'react-icons/md';
-import { toast } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import api from '../../utils/api';
 import { getSocket } from '../../socket/socket';
 import useAuthStore from '../../store/authStore';
@@ -33,16 +33,15 @@ const VideoTile = memo(({ participant, isSelf, isSharingScreen, isActiveSpeaker 
   const { user, stream, audioEnabled, videoEnabled } = participant;
 
   useEffect(() => {
-    if (stream && videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
 
   const containerClasses = `
-    relative aspect-video bg-[#1a1a2e] rounded-2xl overflow-hidden
-    flex items-center justify-center transition-all duration-300
-    shadow-lg group
-    ${isActiveSpeaker && !isSelf ? 'ring-4 ring-indigo-500 glow' : 'ring-2 ring-transparent'}
+    relative aspect-video bg-secondary rounded-2xl overflow-hidden
+    flex items-center justify-center transition-all duration-300 group
+    ${isActiveSpeaker && !isSelf ? 'ring-4 ring-primary' : 'ring-2 ring-transparent'}
   `;
 
   return (
@@ -50,26 +49,26 @@ const VideoTile = memo(({ participant, isSelf, isSharingScreen, isActiveSpeaker 
       {stream && videoEnabled && !isSharingScreen ? (
         <video ref={videoRef} autoPlay playsInline muted={isSelf} className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center bg-secondary">
           <Avatar src={user?.avatar} name={user?.name} size="xl" />
         </div>
       )}
 
       {isSharingScreen && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
-            <MdScreenShare size={48} className="text-green-400 mb-2" />
+            <MdScreenShare size={48} className="text-success mb-2" />
             <p className="text-white font-semibold">Sharing Screen</p>
         </div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
         <div className="flex items-center justify-between">
-          <span className="text-white text-sm font-medium bg-black/50 px-2 py-1 rounded-lg">
+          <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-md">
             {user?.name} {isSelf && '(You)'}
           </span>
           <div className="flex items-center gap-2">
             {participant.handRaised && <span>✋</span>}
-            {!audioEnabled && <MdMicOff size={16} className="text-red-400" />}
+            {!audioEnabled && <MdMicOff size={14} className="text-danger" />}
           </div>
         </div>
       </div>
@@ -225,7 +224,7 @@ const MeetingRoom = () => {
     });
 
     socket.on('meeting:user-left', ({ userId }) => {
-      toast(`${peersRef.current[userId]?.user?.name || 'Someone'} left.`);
+      toast(`${participants.find(p => p.userId === userId)?.user?.name || 'Someone'} left.`);
       setParticipants(prev => prev.filter(p => p.userId !== userId));
       if (peersRef.current[userId]) {
         peersRef.current[userId].close();
@@ -255,7 +254,7 @@ const MeetingRoom = () => {
 
     socket.on('meeting:ended', () => {
       toast.error('Meeting ended by host');
-      navigate('/dashboard');
+      navigate('/meetings');
     });
 
     socket.on('meeting:mute-user', ({ targetUserId }) => {
@@ -386,7 +385,7 @@ const MeetingRoom = () => {
       socket.emit('meeting:end', { meetingId });
     }
     cleanup();
-    navigate('/dashboard');
+    navigate('/meetings');
   };
 
   const copyMeetingId = () => {
@@ -415,38 +414,39 @@ const MeetingRoom = () => {
   };
 
   return (
-    <div className="h-screen bg-[#0f0f1a] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-background text-text flex flex-col overflow-hidden">
+      <Toaster position="bottom-center" toastOptions={{ style: { background: '#1F2937', color: 'white' } }} />
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2 glass border-b border-white/10 shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 bg-surface border-b border-border shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
-            <span className="text-white font-black text-sm">N</span>
+          <div className="w-9 h-9 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+            <span className="font-black text-sm">N</span>
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">{meeting?.title || 'NexMeet'}</p>
+            <p className="text-text font-semibold text-sm">{meeting?.title || 'NexMeet'}</p>
             <div className="flex items-center gap-2">
-              <span className="text-slate-500 text-xs font-mono">{meetingId}</span>
-              <button onClick={copyMeetingId} className="text-slate-500 hover:text-indigo-400 transition-colors">
+              <span className="text-muted text-xs font-mono">{meetingId}</span>
+              <button onClick={copyMeetingId} className="text-muted hover:text-primary transition-colors">
                 <MdContentCopy size={12} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
-            <div className="w-2 h-2 bg-red-500 rounded-full" />
-            <span className="text-red-400 text-xs font-mono">{formatTime(duration)}</span>
+        <div className="hidden md:flex items-center gap-4">
+          <div className="flex items-center gap-1.5 bg-danger/10 border border-danger/20 rounded-full px-3 py-1">
+            <div className="w-2 h-2 bg-danger rounded-full" />
+            <span className="text-danger text-xs font-mono">{formatTime(duration)}</span>
           </div>
-          <Badge variant="info">{participants.length + 1} participants</Badge>
+          <Badge variant="secondary">{participants.length + 1} participants</Badge>
         </div>
       </div>
 
       {/* Main Area */}
       <div className="flex-1 flex relative overflow-hidden">
         {/* Main View: Grid or Speaker */}
-        <div className="flex-1 p-2 md:p-4 overflow-y-auto">
-          <div className={`w-full h-full grid gap-2 md:gap-4 ${gridClasses()}`}>
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+          <div className={`w-full h-full grid gap-4 ${gridClasses()}`}>
             {allParticipants
               .filter(p => p.userId !== user._id) // Exclude self from main grid
               .map((p) => (
@@ -463,7 +463,7 @@ const MeetingRoom = () => {
         <motion.div
           drag
           dragMomentum={false}
-          className="absolute bottom-24 right-4 w-40 md:w-60 z-30 cursor-move"
+          className="absolute bottom-28 right-4 w-40 md:w-60 z-30 cursor-move shadow-2xl rounded-2xl"
         >
           <VideoTile
             participant={{ userId: user._id, user, stream: localStreamRef.current, audioEnabled, videoEnabled, handRaised }}
@@ -479,11 +479,11 @@ const MeetingRoom = () => {
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="absolute top-0 right-0 h-full w-full max-w-sm md:relative md:max-w-xs glass border-l border-white/10 flex flex-col overflow-hidden shrink-0 z-40"
+              className="absolute top-0 right-0 h-full w-full max-w-sm md:relative md:max-w-xs bg-surface border-l border-border flex flex-col overflow-hidden shrink-0 z-40"
             >
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <h3 className="font-semibold text-white capitalize">{activePanel}</h3>
-                <button onClick={() => setActivePanel(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="font-semibold text-text capitalize">{activePanel}</h3>
+                <button onClick={() => setActivePanel(null)} className="p-1.5 rounded-lg hover:bg-secondary text-muted">
                   <MdClose size={18} />
                 </button>
               </div>
@@ -496,14 +496,14 @@ const MeetingRoom = () => {
                       <div className="flex items-center gap-3">
                         <Avatar src={pUser.avatar} name={pUser.name} size="sm" online={true} />
                         <div>
-                          <p className="text-white text-sm font-medium">{pUser.name} {userId === user._id && '(You)'}</p>
-                          {meeting?.host?._id === userId && <Badge variant="info" className="text-xs">Host</Badge>}
+                          <p className="text-text text-sm font-medium">{pUser.name} {userId === user._id && '(You)'}</p>
+                          {meeting?.host?._id === userId && <Badge variant="primary" className="text-xs">Host</Badge>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {(userId === user._id ? handRaised : pHandRaised) && <span>✋</span>}
                         {/* Mute button for host */}
-                        {isHost && userId !== user._id && <button onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })} className="text-slate-400 hover:text-red-400"><MdMicOff size={16} /></button>}
+                        {isHost && userId !== user._id && <button onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })} className="text-muted hover:text-danger"><MdMicOff size={16} /></button>}
                       </div>
                     </div>
                   ))}
@@ -514,14 +514,14 @@ const MeetingRoom = () => {
                 <>
                   <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {chatMessages.length === 0 && (
-                      <p className="text-slate-500 text-sm text-center mt-8">No messages yet. Say hello! 👋</p>
+                      <p className="text-muted text-sm text-center mt-8">No messages yet. Say hello! 👋</p>
                     )}
                     {chatMessages.map((msg, i) => (
                       <div key={i} className={`flex gap-2 ${msg.sender?.name === user.name ? 'flex-row-reverse' : ''}`}>
                         <Avatar src={msg.sender?.avatar} name={msg.sender?.name} size="xs" />
                         <div className={`max-w-[75%] ${msg.sender?.name === user.name ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                          <span className="text-xs text-slate-500">{msg.sender?.name}</span>
-                          <div className={`px-3 py-2 rounded-2xl text-sm ${msg.sender?.name === user.name ? 'gradient-bg text-white' : 'bg-white/10 text-white'}`}>
+                          <span className="text-xs text-muted">{msg.sender?.name}</span>
+                          <div className={`px-3 py-2 rounded-xl text-sm ${msg.sender?.name === user.name ? 'bg-primary text-white' : 'bg-secondary text-text'}`}>
                             {msg.content}
                           </div>
                         </div>
@@ -529,9 +529,9 @@ const MeetingRoom = () => {
                     ))}
                     <div ref={chatEndRef} />
                   </div>
-                  <div className="p-4 border-t border-white/10 flex gap-2">
+                  <div className="p-4 border-t border-border flex gap-2">
                     <input
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                      className="flex-1 bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-primary"
                       placeholder="Message..."
                       value={chatInput}
                       onChange={e => setChatInput(e.target.value)}
@@ -565,12 +565,12 @@ const MeetingRoom = () => {
       </div>
 
       {/* Controls Bar */}
-      <div className="glass border-t border-white/10 px-4 py-3 flex items-center justify-center gap-2 md:gap-4 flex-wrap shrink-0 z-30">
+      <div className="bg-surface/80 backdrop-blur-sm border-t border-border px-4 py-3 flex items-center justify-center gap-2 md:gap-4 flex-wrap shrink-0 z-30">
         {/* Audio */}
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleAudio}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${audioEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${audioEnabled ? 'bg-secondary hover:bg-border text-text' : 'bg-danger text-white'}`}
         >
           {audioEnabled ? <MdMic size={22} /> : <MdMicOff size={22} />}
         </motion.button>
@@ -579,7 +579,7 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleVideo}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${videoEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${videoEnabled ? 'bg-secondary hover:bg-border text-text' : 'bg-danger text-white'}`}
         >
           {videoEnabled ? <MdVideocam size={22} /> : <MdVideocamOff size={22} />}
         </motion.button>
@@ -588,7 +588,7 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleScreenShare}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${screenSharing ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${screenSharing ? 'bg-success text-white' : 'bg-secondary hover:bg-border text-text'}`}
         >
           {screenSharing ? <MdStopScreenShare size={22} /> : <MdScreenShare size={22} />}
         </motion.button>
@@ -597,25 +597,25 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleHand}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${handRaised ? 'bg-yellow-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${handRaised ? 'bg-warning text-white' : 'bg-secondary hover:bg-border text-text'}`}
         >
           <MdPanTool size={22} />
         </motion.button>
 
         {/* Reactions */}
         <div className="relative">
-          <motion.button aria-label="Send reaction"
+          <motion.button aria-label="Send reaction" title="Send Reaction"
             whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setShowReactions(!showReactions)}
-            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
+            className="w-12 h-12 rounded-full bg-secondary hover:bg-border text-text flex items-center justify-center transition-all"
           >
             <MdEmojiEmotions size={22} />
           </motion.button>
           <AnimatePresence>
             {showReactions && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                className="absolute bottom-14 left-1/2 -translate-x-1/2 glass rounded-2xl p-3 flex gap-2"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: -10 }} exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-surface shadow-lg rounded-2xl p-3 flex gap-2 border border-border"
               >
                 {REACTIONS.map(emoji => (
                   <button key={emoji} onClick={() => sendReaction(emoji)} className="text-2xl hover:scale-125 transition-transform">
@@ -631,11 +631,11 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setActivePanel(p => p === 'chat' ? null : 'chat')}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${activePanel === 'chat' ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${activePanel === 'chat' ? 'bg-primary text-white' : 'bg-secondary hover:bg-border text-text'}`}
         >
           <MdChat size={22} />
           {chatMessages.length > 0 && activePanel !== 'chat' && (
-            <span className="absolute top-0 right-0 w-4 h-4 bg-indigo-500 rounded-full text-xs flex items-center justify-center">
+            <span className="absolute top-0 right-0 w-4 h-4 bg-primary text-white rounded-full text-xs flex items-center justify-center">
               {chatMessages.length > 9 ? '9+' : chatMessages.length}
             </span>
           )}
@@ -645,7 +645,7 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setActivePanel(p => p === 'people' ? null : 'people')}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${activePanel === 'people' ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${activePanel === 'people' ? 'bg-primary text-white' : 'bg-secondary hover:bg-border text-text'}`}
         >
           <MdPeople size={22} />
         </motion.button>
@@ -654,7 +654,7 @@ const MeetingRoom = () => {
         <motion.button
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={endMeeting}
-          className="w-14 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all ml-2"
+          className="w-14 h-12 rounded-full bg-danger hover:bg-danger/90 text-white flex items-center justify-center transition-all ml-2"
         >
           <MdCallEnd size={24} />
         </motion.button>

@@ -75,13 +75,13 @@ const PeoplePage = () => {
   return (
     <Sidebar>
       <div className="space-y-6">
-        <h1 className="text-xl font-bold text-white">People</h1>
+        <h1 className="text-xl font-bold text-text">People</h1>
 
         {/* Tabs */}
         <div className="flex gap-2">
           {['search', 'friends', 'requests'].map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${tab === t ? 'gradient-bg text-white' : 'glass text-slate-400 hover:text-white'}`}>
+              className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${tab === t ? 'bg-primary text-white' : 'bg-surface text-muted hover:text-text shadow-sm'}`}>
               {t} {t === 'requests' && requests.length > 0 && <span className="ml-1 bg-indigo-500 text-white text-xs rounded-full px-1.5">{requests.length}</span>}
             </button>
           ))}
@@ -91,9 +91,9 @@ const PeoplePage = () => {
         {tab === 'search' && (
           <div className="space-y-4">
             <div className="relative">
-              <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+              <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted w-5 h-5" />
               <input
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-all"
+                className="w-full bg-surface border border-border rounded-xl pl-10 pr-4 py-3 text-text placeholder-muted focus:outline-none focus:border-primary transition-all"
                 placeholder="Search by name or email..."
                 value={searchQuery}
                 onChange={e => searchUsers(e.target.value)}
@@ -102,23 +102,23 @@ const PeoplePage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {searchResults.map(u => (
                 <motion.div key={u._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Card hover className="flex items-center gap-3">
+                  <Card className="flex items-center gap-3">
                     <Avatar src={u.avatar} name={u.name} size="md" online={u.isOnline} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm truncate">{u.name}</p>
-                      <p className="text-slate-500 text-xs truncate">{u.email}</p>
+                      <p className="text-text font-semibold text-sm truncate">{u.name}</p>
+                      <p className="text-muted text-xs truncate">{u.email}</p>
                     </div>
-                    <Button size="icon" variant={u.requestSent ? 'secondary' : 'primary'} onClick={() => !u.requestSent && sendRequest(u._id)} disabled={u.requestSent}>
+                    <Button size="icon" variant={u.requestSent ? 'ghost' : 'primary'} onClick={() => !u.requestSent && sendRequest(u._id)} disabled={u.requestSent}>
                       {u.requestSent ? <MdCheck size={16} /> : <MdPersonAdd size={16} />}
                     </Button>
                   </Card>
                 </motion.div>
               ))}
               {searchQuery.length >= 2 && searchResults.length === 0 && (
-                <p className="text-slate-500 text-sm col-span-full text-center py-8">No users found for "{searchQuery}"</p>
+                <p className="text-muted text-sm col-span-full text-center py-8">No users found for "{searchQuery}"</p>
               )}
               {searchQuery.length < 2 && (
-                <p className="text-slate-500 text-sm col-span-full text-center py-8">Type at least 2 characters to search</p>
+                <p className="text-muted text-sm col-span-full text-center py-8">Type at least 2 characters to search</p>
               )}
             </div>
           </div>
@@ -127,15 +127,15 @@ const PeoplePage = () => {
         {/* Friends */}
         {tab === 'friends' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {friends.length === 0 ? (
-              <p className="text-slate-500 text-sm col-span-full text-center py-12">No friends yet. Search for people to connect!</p>
+            {friends.length === 0 ? ( 
+              <p className="text-muted text-sm col-span-full text-center py-12">No friends yet. Search for people to connect!</p>
             ) : (
               friends.map(f => (
                 <motion.div key={f._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                  <Card hover className="flex items-center gap-3">
+                  <Card className="flex items-center gap-3">
                     <Avatar src={f.avatar} name={f.name} size="md" online={f.isOnline} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm">{f.name}</p>
+                      <p className="text-text font-semibold text-sm">{f.name}</p>
                       <Badge variant={f.isOnline ? 'success' : 'default'} className="text-xs">
                         {f.isOnline ? 'Online' : 'Offline'}
                       </Badge>
@@ -158,15 +158,15 @@ const PeoplePage = () => {
         {/* Friend Requests */}
         {tab === 'requests' && (
           <div className="space-y-3">
-            {requests.length === 0 ? (
-              <p className="text-slate-500 text-sm text-center py-12">No pending friend requests</p>
+            {requests.length === 0 ? ( 
+              <p className="text-muted text-sm text-center py-12">No pending friend requests</p>
             ) : (
               requests.map(r => (
                 <Card key={r._id || r} className="flex items-center gap-3">
                   <Avatar src={r.avatar} name={r.name} size="md" />
                   <div className="flex-1">
-                    <p className="text-white font-semibold text-sm">{r.name || 'User'}</p>
-                    <p className="text-slate-500 text-xs">Sent you a friend request</p>
+                    <p className="text-text font-semibold text-sm">{r.name || 'User'}</p>
+                    <p className="text-muted text-xs">Sent you a friend request</p>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => acceptRequest(r._id || r)}>

@@ -34,7 +34,7 @@ const MeetingsPage = () => {
     <Sidebar>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white">Meetings</h1>
+          <h1 className="text-xl font-bold text-text">Meetings</h1>
           <Button onClick={() => navigate('/dashboard')}>
             <MdAdd size={18} /> New Meeting
           </Button>
@@ -44,7 +44,7 @@ const MeetingsPage = () => {
         <div className="flex gap-2 flex-wrap">
           {['all', 'active', 'scheduled', 'ended'].map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${tab === t ? 'gradient-bg text-white' : 'glass text-slate-400 hover:text-white'}`}>
+              className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all ${tab === t ? 'bg-primary text-white' : 'bg-surface text-muted hover:text-text shadow-sm'}`}>
               {t}
             </button>
           ))}
@@ -54,21 +54,21 @@ const MeetingsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.length === 0 ? (
             <div className="col-span-full text-center py-16">
-              <MdHistory size={48} className="text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No meetings found</p>
+              <MdHistory size={48} className="text-muted/50 mx-auto mb-3" />
+              <p className="text-muted">No meetings found</p>
             </div>
           ) : (
             filtered.map(m => (
               <motion.div key={m._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Card hover className="flex flex-col gap-3">
+                <Card className="flex flex-col gap-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center">
-                        <MdVideoCall size={20} className="text-white" />
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <MdVideoCall size={20} className="text-primary" />
                       </div>
                       <div>
-                        <p className="text-white font-semibold text-sm">{m.title}</p>
-                        <p className="text-slate-500 text-xs font-mono">{m.meetingId}</p>
+                        <p className="text-text font-semibold text-sm">{m.title}</p>
+                        <p className="text-muted text-xs font-mono">{m.meetingId}</p>
                       </div>
                     </div>
                     <Badge variant={m.status === 'active' ? 'success' : m.status === 'ended' ? 'default' : 'warning'}>
@@ -76,7 +76,7 @@ const MeetingsPage = () => {
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
+                  <div className="flex items-center gap-4 text-xs text-muted flex-wrap">
                     <span className="flex items-center gap-1">
                       <BsCalendar3 size={12} /> {format(new Date(m.createdAt), 'MMM d, yyyy')}
                     </span>
@@ -115,10 +115,10 @@ const MeetingsPage = () => {
             <div className="bg-white p-4 rounded-2xl">
               <QRCode value={showQR.inviteLink || `${window.location.origin}/join/${showQR.meetingId}`} size={200} />
             </div>
-            <p className="text-slate-400 text-sm text-center">
-              Scan to join <strong className="text-white">{showQR.title}</strong>
+            <p className="text-muted text-sm text-center">
+              Scan to join <strong className="text-text">{showQR.title}</strong>
             </p>
-            <p className="text-indigo-400 font-mono text-lg font-bold">{showQR.meetingId}</p>
+            <p className="text-primary font-mono text-lg font-bold">{showQR.meetingId}</p>
           </div>
         )}
       </Modal>

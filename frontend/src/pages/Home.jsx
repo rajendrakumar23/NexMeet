@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { BsArrowRight, BsStars, BsCameraVideo, BsChatDots, BsShieldCheck, BsPeopleFill } from 'react-icons/bs';
 import { MdSmartToy, MdScreenShare, MdRecordVoiceOver } from 'react-icons/md';
 import Navbar from '../components/layout/Navbar';
-import Button from '../components/ui/Button';
+import Button from '../components/ui/Button'; 
 import Card from '../components/ui/Card';
 
 const fadeUp = { hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0 } };
@@ -33,16 +33,16 @@ const faqs = [
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-[#0f0f1a]">
+    <div className="min-h-screen bg-background text-text">
       <Navbar />
 
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
         {/* Background orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 text-center">
@@ -50,23 +50,23 @@ const Home = () => {
             <motion.div variants={fadeUp}>
               <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm text-indigo-400 border border-indigo-500/30">
                 <BsStars className="text-yellow-400" />
-                Introducing NexMeet AI — The Future of Meetings
+                Introducing NexMeet AI — The Future of Collaboration
               </span>
             </motion.div>
 
-            <motion.h1 variants={fadeUp} className="text-5xl md:text-7xl font-black text-white leading-tight max-w-4xl">
+            <motion.h1 variants={fadeUp} className="text-5xl md:text-7xl font-black text-text leading-tight max-w-4xl">
               Meet, Chat &{' '}
-              <span className="gradient-text">Collaborate</span>
+              <span className="text-primary">Collaborate</span>
               {' '}with AI
             </motion.h1>
 
-            <motion.p variants={fadeUp} className="text-lg md:text-xl text-slate-400 max-w-2xl">
+            <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted max-w-2xl">
               The all-in-one platform combining HD video calls, real-time chat, and an AI assistant. Built for modern teams.
             </motion.p>
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4">
               <Link to="/register">
-                <Button size="xl" className="group">
+                <Button size="xl" variant="primary" className="group">
                   Start for Free
                   <BsArrowRight className="group-hover:translate-x-1 transition-transform" />
                 </Button>
@@ -80,8 +80,8 @@ const Home = () => {
             <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-8 mt-8">
               {[['10K+', 'Active Users'], ['500K+', 'Meetings Hosted'], ['99.9%', 'Uptime'], ['4.9★', 'Rating']].map(([val, label]) => (
                 <div key={label} className="text-center">
-                  <div className="text-2xl font-black gradient-text">{val}</div>
-                  <div className="text-sm text-slate-500">{label}</div>
+                  <div className="text-2xl font-black text-primary">{val}</div>
+                  <div className="text-sm text-muted">{label}</div>
                 </div>
               ))}
             </motion.div>
@@ -94,22 +94,22 @@ const Home = () => {
             transition={{ delay: 0.5, duration: 0.8 }}
             className="mt-16 relative"
           >
-            <div className="glass rounded-3xl p-4 max-w-4xl mx-auto gradient-border">
-              <div className="bg-[#1a1a2e] rounded-2xl overflow-hidden">
+            <div className="bg-surface rounded-3xl p-4 max-w-4xl mx-auto border border-border shadow-lg">
+              <div className="bg-secondary rounded-2xl overflow-hidden">
                 {/* Mock meeting UI */}
-                <div className="bg-[#0f0f1a] px-4 py-3 flex items-center gap-3 border-b border-white/10">
+                <div className="bg-background px-4 py-3 flex items-center gap-3 border-b border-border">
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-500" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500" />
                     <div className="w-3 h-3 rounded-full bg-green-500" />
                   </div>
-                  <span className="text-xs text-slate-500 mx-auto">NexMeet — Team Standup • 4 participants</span>
+                  <span className="text-xs text-muted mx-auto">NexMeet — Team Standup • 4 participants</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-4">
                   {['Alex', 'Sarah', 'Mike', 'You'].map((name, i) => (
                     <div key={name} className={`aspect-video rounded-xl flex items-center justify-center relative overflow-hidden ${i === 3 ? 'ring-2 ring-indigo-500' : ''}`}
                       style={{ background: `linear-gradient(135deg, hsl(${i * 60 + 200}, 70%, 20%), hsl(${i * 60 + 240}, 70%, 15%))` }}>
-                      <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white font-bold">
+                      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">
                         {name[0]}
                       </div>
                       <span className="absolute bottom-2 left-2 text-xs text-white bg-black/50 px-2 py-0.5 rounded-full">{name}</span>
@@ -120,11 +120,11 @@ const Home = () => {
                 {/* Controls */}
                 <div className="flex items-center justify-center gap-3 pb-4">
                   {['🎤', '📷', '🖥️', '✋', '💬', '⚙️'].map(emoji => (
-                    <div key={emoji} className="w-10 h-10 rounded-full glass flex items-center justify-center text-lg cursor-pointer hover:bg-white/20 transition-colors">
+                    <div key={emoji} className="w-10 h-10 rounded-full bg-surface/50 flex items-center justify-center text-lg cursor-pointer hover:bg-border transition-colors">
                       {emoji}
                     </div>
                   ))}
-                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white cursor-pointer hover:bg-red-600 transition-colors">
+                  <div className="w-10 h-10 rounded-full bg-danger flex items-center justify-center text-white cursor-pointer hover:bg-danger/90 transition-colors">
                     📞
                   </div>
                 </div>
@@ -142,11 +142,11 @@ const Home = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-              Everything you need to <span className="gradient-text">collaborate</span>
+          > 
+            <h2 className="text-4xl md:text-5xl font-black text-text mb-4">
+              Everything you need to <span className="text-primary">collaborate</span>
             </h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+            <p className="text-muted text-lg max-w-2xl mx-auto">
               NexMeet combines the best of video conferencing, team chat, and AI assistance in one beautiful platform.
             </p>
           </motion.div>
@@ -160,12 +160,12 @@ const Home = () => {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <Card hover className="h-full">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4`}>
+                <Card className="h-full">
+                  <div className={`w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4`}>
                     <f.icon size={24} className="text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
+                  <h3 className="text-lg font-bold text-text mb-2">{f.title}</h3>
+                  <p className="text-muted text-sm leading-relaxed">{f.desc}</p>
                 </Card>
               </motion.div>
             ))}
@@ -176,9 +176,9 @@ const Home = () => {
       {/* Pricing */}
       <section id="pricing" className="py-24 px-4">
         <div className="max-w-5xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Simple <span className="gradient-text">Pricing</span></h2>
-            <p className="text-slate-400 text-lg">Start free, upgrade when you need more.</p>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16"> 
+            <h2 className="text-4xl md:text-5xl font-black text-text mb-4">Simple <span className="text-primary">Pricing</span></h2>
+            <p className="text-muted text-lg">Start free, upgrade when you need more.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -199,22 +199,22 @@ const Home = () => {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className={`glass rounded-2xl p-8 border ${plan.color} relative ${plan.popular ? 'glow' : ''}`}
+                className={`bg-surface rounded-2xl p-8 border ${plan.color} relative ${plan.popular ? 'ring-2 ring-primary' : ''}`}
               >
                 {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-bg text-white text-xs font-bold px-4 py-1 rounded-full">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-bold px-4 py-1 rounded-full">
                     Most Popular
                   </span>
                 )}
-                <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+                <h3 className="text-xl font-bold text-text mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-black gradient-text">{plan.price}</span>
-                  <span className="text-slate-400">{plan.period}</span>
+                  <span className="text-4xl font-black text-primary">{plan.price}</span>
+                  <span className="text-muted">{plan.period}</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
-                      <span className="text-green-400">✓</span> {f}
+                    <li key={f} className="flex items-center gap-2 text-text text-sm">
+                      <span className="text-success">✓</span> {f}
                     </li>
                   ))}
                 </ul>
@@ -230,19 +230,19 @@ const Home = () => {
       {/* Testimonials */}
       <section className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl font-black text-white mb-4">Loved by <span className="gradient-text">thousands</span></h2>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16"> 
+            <h2 className="text-4xl font-black text-text mb-4">Loved by <span className="text-primary">thousands</span></h2>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
               <motion.div key={t.name} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <Card className="h-full">
-                  <p className="text-slate-300 text-sm leading-relaxed mb-4">"{t.text}"</p>
+                  <p className="text-muted text-sm leading-relaxed mb-4">"{t.text}"</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
                     <div>
-                      <p className="text-white font-semibold text-sm">{t.name}</p>
-                      <p className="text-slate-500 text-xs">{t.role}</p>
+                      <p className="text-text font-semibold text-sm">{t.name}</p>
+                      <p className="text-muted text-xs">{t.role}</p>
                     </div>
                   </div>
                 </Card>
@@ -255,15 +255,15 @@ const Home = () => {
       {/* FAQ */}
       <section id="faq" className="py-24 px-4">
         <div className="max-w-3xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl font-black text-white mb-4">Frequently Asked <span className="gradient-text">Questions</span></h2>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16"> 
+            <h2 className="text-4xl font-black text-text mb-4">Frequently Asked <span className="text-primary">Questions</span></h2>
           </motion.div>
           <div className="space-y-4">
             {faqs.map((faq, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <Card>
-                  <h3 className="text-white font-semibold mb-2">{faq.q}</h3>
-                  <p className="text-slate-400 text-sm">{faq.a}</p>
+                  <h3 className="text-text font-semibold mb-2">{faq.q}</h3>
+                  <p className="text-muted text-sm">{faq.a}</p>
                 </Card>
               </motion.div>
             ))}
@@ -274,13 +274,13 @@ const Home = () => {
       {/* CTA */}
       <section className="py-24 px-4">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
-          className="max-w-4xl mx-auto glass rounded-3xl p-12 text-center gradient-border">
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-            Ready to <span className="gradient-text">get started?</span>
+          className="max-w-4xl mx-auto bg-surface rounded-3xl p-12 text-center border border-border shadow-lg">
+          <h2 className="text-4xl md:text-5xl font-black text-text mb-4">
+            Ready to <span className="text-primary">get started?</span>
           </h2>
-          <p className="text-slate-400 text-lg mb-8">Join thousands of teams already using NexMeet.</p>
+          <p className="text-muted text-lg mb-8">Join thousands of teams already using NexMeet.</p>
           <Link to="/register">
-            <Button size="xl" className="group">
+            <Button size="xl" variant="primary" className="group">
               Create Free Account
               <BsArrowRight className="group-hover:translate-x-1 transition-transform" />
             </Button>
@@ -289,20 +289,20 @@ const Home = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-12 px-4">
+      <footer className="border-t border-border py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
-                <span className="text-white font-black text-sm">N</span>
+              <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                <span className="font-black text-sm">N</span>
               </div>
-              <span className="font-black text-xl gradient-text">NexMeet</span>
+              <span className="font-black text-xl text-primary">NexMeet</span>
             </div>
-            <p className="text-slate-500 text-sm">© 2026 NexMeet. Built with ❤️ for modern teams.</p>
-            <div className="flex gap-6 text-sm text-slate-500">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <p className="text-muted text-sm">© 2026 NexMeet. Built with ❤️ for modern teams.</p>
+            <div className="flex gap-6 text-sm text-muted">
+              <a href="#" className="hover:text-text transition-colors">Privacy</a>
+              <a href="#" className="hover:text-text transition-colors">Terms</a>
+              <a href="#" className="hover:text-text transition-colors">Contact</a>
             </div>
           </div>
         </div>
