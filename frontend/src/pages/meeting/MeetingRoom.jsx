@@ -471,7 +471,7 @@ const MeetingRoom = () => {
             isSharingScreen={screenSharing}
             isActiveSpeaker={activeSpeaker === user._id}
           />
-        </div>
+        </motion.div>
 
         {/* Side Panel */}
         <AnimatePresence>
