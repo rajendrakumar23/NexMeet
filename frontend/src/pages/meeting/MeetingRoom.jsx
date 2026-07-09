@@ -1,14 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   MdMic, MdMicOff, MdVideocam, MdVideocamOff, MdScreenShare, MdStopScreenShare,
   MdCallEnd, MdChat, MdPeople, MdPanTool, MdMoreVert, MdContentCopy, MdClose,
-  MdSend, MdEmojiEmotions, MdArrowBack
+  MdSend, MdEmojiEmotions, MdPushPin, MdInfoOutline
 } from 'react-icons/md';
-import { BsRecordCircle, BsGrid, BsLayoutSidebarReverse } from 'react-icons/bs';
 import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
 import api from '../../utils/api';
 import { getSocket } from '../../socket/socket';
 import useAuthStore from '../../store/authStore';
@@ -26,9 +24,13 @@ const ICE_SERVERS = {
   ],
 };
 
-// Remote Video Component
-const RemoteVideo = ({ stream }) => {
+/**
+ * VideoTile Component: Renders a single participant's video or avatar.
+ * It's memoized to prevent re-renders unless its specific props change.
+ */
+const VideoTile = memo(({ participant, isSelf, isSharingScreen, isActiveSpeaker }) => {
   const videoRef = useRef(null);
+  const { user, stream, audioEnabled, videoEnabled } = participant;
 
   useEffect(() => {
     if (stream && videoRef.current) {
@@ -36,15 +38,44 @@ const RemoteVideo = ({ stream }) => {
     }
   }, [stream]);
 
+  const containerClasses = `
+    relative aspect-video bg-[#1a1a2e] rounded-2xl overflow-hidden
+    flex items-center justify-center transition-all duration-300
+    shadow-lg group
+    ${isActiveSpeaker && !isSelf ? 'ring-4 ring-indigo-500 glow' : 'ring-2 ring-transparent'}
+  `;
+
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      className="w-full h-full object-cover"
-    />
+    <div className={containerClasses}>
+      {stream && videoEnabled && !isSharingScreen ? (
+        <video ref={videoRef} autoPlay playsInline muted={isSelf} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Avatar src={user?.avatar} name={user?.name} size="xl" />
+        </div>
+      )}
+
+      {isSharingScreen && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
+            <MdScreenShare size={48} className="text-green-400 mb-2" />
+            <p className="text-white font-semibold">Sharing Screen</p>
+        </div>
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+        <div className="flex items-center justify-between">
+          <span className="text-white text-sm font-medium bg-black/50 px-2 py-1 rounded-lg">
+            {user?.name} {isSelf && '(You)'}
+          </span>
+          <div className="flex items-center gap-2">
+            {participant.handRaised && <span>✋</span>}
+            {!audioEnabled && <MdMicOff size={16} className="text-red-400" />}
+          </div>
+        </div>
+      </div>
+    </div>
   );
-};
+});
 
 const MeetingRoom = () => {
   const { meetingId } = useParams();
@@ -54,10 +85,11 @@ const MeetingRoom = () => {
 
   // State
   const [meeting, setMeeting] = useState(null);
-  // We will now store peer connections instead of just user info
   const [participants, setParticipants] = useState([]);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  const [activeSpeaker, setActiveSpeaker] = useState(null);
+  const [mainView, setMainView] = useState({ type: 'grid', userId: null }); // type: 'grid' | 'speaker' | 'screenshare'
   const [screenSharing, setScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [layout, setLayout] = useState('grid'); // grid | speaker
@@ -74,6 +106,7 @@ const MeetingRoom = () => {
   const screenStreamRef = useRef(null);
   const peersRef = useRef({}); // This will store all RTCPeerConnection objects
   const chatEndRef = useRef(null);
+  const audioContextRef = useRef(null);
   const timerRef = useRef(null);
 
   // Join meeting & setup media
@@ -88,6 +121,7 @@ const MeetingRoom = () => {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setupAudioAnalysis(stream);
 
         // Join socket room
         socket.emit('meeting:join', { meetingId, user: { _id: user._id, name: user.name, avatar: user.avatar, handRaised: false } });
@@ -106,6 +140,27 @@ const MeetingRoom = () => {
     };
   }, [meetingId]);
 
+  // Active Speaker Detection
+  const setupAudioAnalysis = (stream) => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const analyser = audioContextRef.current.createAnalyser();
+    const source = audioContextRef.current.createMediaStreamSource(stream);
+    source.connect(analyser);
+    analyser.fftSize = 512;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const checkVolume = () => {
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+      if (average > 30 && audioEnabled) { // Threshold for speaking
+        socket.emit('meeting:speaking', { meetingId, userId: user._id });
+      }
+    };
+    setInterval(checkVolume, 200);
+  };
   // Function to create a peer connection and add stream
   const createPeer = useCallback((targetUserId, initiator) => {
     const peer = new RTCPeerConnection(ICE_SERVERS);
@@ -122,9 +177,10 @@ const MeetingRoom = () => {
     };
 
     peer.ontrack = (event) => {
-      // This is where we will receive the remote stream, but we handle it in the RemoteVideo component
-      // For simplicity, we'll re-render participants to attach the stream
-      setParticipants(prev => prev.map(p => p.userId === targetUserId ? { ...p, stream: event.streams[0] } : p));
+      setParticipants(prev => prev.map(p =>
+        p.userId === targetUserId ? { ...p, stream: event.streams[0] } : p
+      ));
+      setupAudioAnalysis(event.streams[0]);
     };
 
     if (initiator) {
@@ -147,7 +203,7 @@ const MeetingRoom = () => {
     socket.on('meeting:user-joined', ({ user: joinedUser }) => {
       if (joinedUser._id === user._id) return;
       toast(`${joinedUser.name} joined`, { icon: '👋' });
-      const peer = createPeer(joinedUser._id, true);
+      const peer = createPeer(joinedUser._id, true); // I am the initiator
       setParticipants(prev => [...prev, { userId: joinedUser._id, user: joinedUser, peer }]);
     });
 
@@ -169,7 +225,13 @@ const MeetingRoom = () => {
     });
 
     socket.on('meeting:user-left', ({ userId }) => {
+      toast(`${peersRef.current[userId]?.user?.name || 'Someone'} left.`);
       setParticipants(prev => prev.filter(p => p.userId !== userId));
+      if (peersRef.current[userId]) {
+        peersRef.current[userId].close();
+        delete peersRef.current[userId];
+      }
+      if (activeSpeaker === userId) setActiveSpeaker(null);
     });
 
     socket.on('meeting:chat', (msg) => {
@@ -183,7 +245,12 @@ const MeetingRoom = () => {
     });
 
     socket.on('meeting:raise-hand', ({ userId, raised }) => {
-      setParticipants(prev => prev.map(p => p.userId === userId ? { ...p, user: { ...p.user, handRaised: raised } } : p));
+      if (userId === user._id) return;
+      setParticipants(prev => prev.map(p => p.userId === userId ? { ...p, handRaised: raised } : p));
+    });
+
+    socket.on('meeting:speaking', ({ userId }) => {
+      setActiveSpeaker(userId);
     });
 
     socket.on('meeting:ended', () => {
@@ -209,6 +276,7 @@ const MeetingRoom = () => {
       socket.off('meeting:chat');
       socket.off('meeting:reaction');
       socket.off('meeting:raise-hand');
+      socket.off('meeting:speaking');
       socket.off('webrtc:offer');
       socket.off('webrtc:answer');
       socket.off('webrtc:ice-candidate');
@@ -225,6 +293,7 @@ const MeetingRoom = () => {
   const cleanup = () => {
     clearInterval(timerRef.current);
     localStreamRef.current?.getTracks().forEach(t => t.stop());
+    audioContextRef.current?.close();
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
     Object.values(peersRef.current).forEach(peer => peer.close());
     peersRef.current = {};
@@ -251,11 +320,25 @@ const MeetingRoom = () => {
     if (!screenSharing) {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const videoTrack = stream.getVideoTracks()[0];
+        
+        // Replace video track in all peer connections
+        Object.values(peersRef.current).forEach(peer => {
+          const sender = peer.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) sender.replaceTrack(videoTrack);
+        });
+
         screenStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        stream.getVideoTracks()[0].onended = () => stopScreenShare();
+        videoTrack.onended = () => stopScreenShare();
+
         setScreenSharing(true);
+        setVideoEnabled(true); // Screen sharing is a form of video
+        setMainView({ type: 'screenshare', userId: user._id });
         socket.emit('meeting:screen-share', { meetingId, userId: user._id, sharing: true });
+
+        // Update local video ref to show screen share
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
       } catch { toast.error('Screen share cancelled'); }
     } else {
       stopScreenShare();
@@ -263,9 +346,17 @@ const MeetingRoom = () => {
   };
 
   const stopScreenShare = () => {
+    const localVideoTrack = localStreamRef.current.getVideoTracks()[0];
+    Object.values(peersRef.current).forEach(peer => {
+      const sender = peer.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) sender.replaceTrack(localVideoTrack);
+    });
+
     screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    screenStreamRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
     setScreenSharing(false);
+    setMainView({ type: 'grid', userId: null });
     socket.emit('meeting:screen-share', { meetingId, userId: user._id, sharing: false });
   };
 
@@ -307,11 +398,27 @@ const MeetingRoom = () => {
 
   const isHost = meeting?.host?._id === user?._id;
 
+  // Dynamic Grid Logic
+  const allParticipants = [{ userId: user._id, user, stream: localStreamRef.current, audioEnabled, videoEnabled, isSelf: true }, ...participants];
+  const participantCount = allParticipants.length;
+
+  const gridClasses = () => {
+    if (mainView.type !== 'grid') return 'grid-cols-1';
+    if (participantCount <= 1) return 'grid-cols-1';
+    if (participantCount === 2) return 'grid-cols-2';
+    if (participantCount <= 4) return 'grid-cols-2 grid-rows-2';
+    if (participantCount <= 6) return 'grid-cols-3 grid-rows-2';
+    if (participantCount <= 9) return 'grid-cols-3 grid-rows-3';
+    if (participantCount <= 12) return 'grid-cols-4 grid-rows-3';
+    if (participantCount <= 16) return 'grid-cols-4 grid-rows-4';
+    return 'grid-cols-5'; // For more than 16, with scrolling
+  };
+
   return (
-    <div className="h-screen bg-[#0a0a14] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0f0f1a] text-white flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-3 glass border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-4 py-2 glass border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
             <span className="text-white font-black text-sm">N</span>
           </div>
@@ -326,7 +433,7 @@ const MeetingRoom = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
             <div className="w-2 h-2 bg-red-500 rounded-full" />
             <span className="text-red-400 text-xs font-mono">{formatTime(duration)}</span>
@@ -336,69 +443,44 @@ const MeetingRoom = () => {
       </div>
 
       {/* Main Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Video Grid */}
-        <div className="flex-1 p-2 md:p-4 overflow-hidden">
-          <div className={`h-full grid gap-2 md:gap-3 ${
-            participants.length < 1 ? 'grid-cols-1' :
-            participants.length < 2 ? 'grid-cols-2' :
-            participants.length < 4 ? 'grid-cols-2 grid-rows-2' :
-            participants.length < 6 ? 'grid-cols-3' : 'grid-cols-4'
-          }`}>
-            {/* Local Video */}
-            <div className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] group">
-              <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-              {!videoEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a2e]">
-                  <Avatar src={user?.avatar} name={user?.name} size="xl" />
-                </div>
-              )}
-              <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-full font-medium">
-                  You {isHost && '(Host)'}
-                </span>
-                {!audioEnabled && <MdMicOff size={14} className="text-red-400" />}
-                {handRaised && <span>✋</span>}
-              </div>
-              {screenSharing && (
-                <div className="absolute top-3 right-3 bg-green-500/20 border border-green-500/30 rounded-full px-2 py-0.5 text-xs text-green-400">
-                  Sharing
-                </div>
-              )}
-            </div>
-
-            {/* Remote Participants (placeholder tiles) */}
-            {participants.map(({ userId, user: pUser, peer, stream }) => (
-              <div key={userId} className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] flex items-center justify-center">
-                {stream ? <RemoteVideo stream={stream} /> : <Avatar src={pUser.avatar} name={pUser.name} size="xl" />}
-                <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                  <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-full">{pUser.name}</span>
-                  {pUser.handRaised && <span>✋</span>}
-                </div>
-                {isHost && (
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })}
-                      className="p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-colors"
-                    >
-                      <MdMicOff size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* Main View: Grid or Speaker */}
+        <div className="flex-1 p-2 md:p-4 overflow-y-auto">
+          <div className={`w-full h-full grid gap-2 md:gap-4 ${gridClasses()}`}>
+            {allParticipants
+              .filter(p => p.userId !== user._id) // Exclude self from main grid
+              .map((p) => (
+                <VideoTile
+                  key={p.userId}
+                  participant={p}
+                  isActiveSpeaker={activeSpeaker === p.userId}
+                />
+              ))}
           </div>
+        </div>
+
+        {/* Self Video (Picture-in-Picture) */}
+        <motion.div
+          drag
+          dragMomentum={false}
+          className="absolute bottom-24 right-4 w-40 md:w-60 z-30 cursor-move"
+        >
+          <VideoTile
+            participant={{ userId: user._id, user, stream: localStreamRef.current, audioEnabled, videoEnabled, handRaised }}
+            isSelf={true}
+            isSharingScreen={screenSharing}
+            isActiveSpeaker={activeSpeaker === user._id}
+          />
         </div>
 
         {/* Side Panel */}
         <AnimatePresence>
           {activePanel && (
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}              
-              className="absolute md:relative top-0 right-0 h-full w-full md:w-80 glass border-l border-white/10 flex flex-col overflow-hidden shrink-0 z-20"
-            > 
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute top-0 right-0 h-full w-full max-w-sm md:relative md:max-w-xs glass border-l border-white/10 flex flex-col overflow-hidden shrink-0 z-40"
+            >
               <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <h3 className="font-semibold text-white capitalize">{activePanel}</h3>
                 <button onClick={() => setActivePanel(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400">
@@ -409,10 +491,7 @@ const MeetingRoom = () => {
               {activePanel === 'people' && (
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {/* Add self to participants list */}
-                  {[
-                    { userId: user._id, user: { ...user, handRaised } },
-                    ...participants
-                  ].map(({ userId, user: pUser }) => (
+                  {allParticipants.map(({ userId, user: pUser, handRaised: pHandRaised }) => (
                     <div key={userId} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar src={pUser.avatar} name={pUser.name} size="sm" online={true} />
@@ -422,7 +501,7 @@ const MeetingRoom = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {pUser.handRaised && <span>✋</span>}
+                        {(userId === user._id ? handRaised : pHandRaised) && <span>✋</span>}
                         {/* Mute button for host */}
                         {isHost && userId !== user._id && <button onClick={() => socket.emit('meeting:mute-user', { meetingId, targetUserId: userId })} className="text-slate-400 hover:text-red-400"><MdMicOff size={16} /></button>}
                       </div>
@@ -486,10 +565,10 @@ const MeetingRoom = () => {
       </div>
 
       {/* Controls Bar */}
-      <div className="glass border-t border-white/10 px-4 py-3 flex items-center justify-center gap-2 md:gap-3 flex-wrap shrink-0">
+      <div className="glass border-t border-white/10 px-4 py-3 flex items-center justify-center gap-2 md:gap-4 flex-wrap shrink-0 z-30">
         {/* Audio */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleAudio}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${audioEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}
         >
@@ -498,7 +577,7 @@ const MeetingRoom = () => {
 
         {/* Video */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleVideo}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${videoEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500 text-white'}`}
         >
@@ -507,7 +586,7 @@ const MeetingRoom = () => {
 
         {/* Screen Share */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleScreenShare}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${screenSharing ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
         >
@@ -516,7 +595,7 @@ const MeetingRoom = () => {
 
         {/* Raise Hand */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={toggleHand}
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${handRaised ? 'bg-yellow-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
         >
@@ -525,7 +604,7 @@ const MeetingRoom = () => {
 
         {/* Reactions */}
         <div className="relative">
-          <motion.button
+          <motion.button aria-label="Send reaction"
             whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
             onClick={() => setShowReactions(!showReactions)}
             className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
@@ -548,20 +627,11 @@ const MeetingRoom = () => {
           </AnimatePresence>
         </div>
 
-        {/* Layout Toggle */}
-        <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-          onClick={() => setLayout(l => l === 'grid' ? 'speaker' : 'grid')}
-          className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
-        >
-          {layout === 'grid' ? <BsLayoutSidebarReverse size={20} /> : <BsGrid size={20} />}
-        </motion.button>
-
         {/* Chat */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setActivePanel(p => p === 'chat' ? null : 'chat')}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${activePanel === 'chat' ? 'gradient-bg text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all relative ${activePanel === 'chat' ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
         >
           <MdChat size={22} />
           {chatMessages.length > 0 && activePanel !== 'chat' && (
@@ -573,16 +643,16 @@ const MeetingRoom = () => {
 
         {/* Participants */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={() => setActivePanel(p => p === 'people' ? null : 'people')}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${activePanel === 'people' ? 'gradient-bg text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${activePanel === 'people' ? 'bg-indigo-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
         >
           <MdPeople size={22} />
         </motion.button>
 
         {/* End Call */}
         <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           onClick={endMeeting}
           className="w-14 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all ml-2"
         >
