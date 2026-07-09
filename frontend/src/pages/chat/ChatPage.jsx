@@ -15,6 +15,11 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { playNotificationSound } from '../../utils/sound';
 
+const getOtherParticipant = (conversation, currentUser) => {
+  if (!conversation || !currentUser) return null;
+  return conversation.participants.find(p => p._id !== currentUser._id);
+};
+
 const ChatPage = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -169,7 +174,7 @@ const ChatPage = () => {
   };
 
   const isTyping = activeConversation && Object.entries(typingUsers).some(([key, val]) => key.startsWith(activeConversation._id) && val);
-
+  
   const filteredConvs = conversations.filter(c => {
     const other = getOtherParticipant(c);
     return !convSearch || other?.name?.toLowerCase().includes(convSearch.toLowerCase()) || c.groupName?.toLowerCase().includes(convSearch.toLowerCase());
@@ -206,7 +211,7 @@ const ChatPage = () => {
               </div>
             )}
             {filteredConvs.map(conv => {
-              const other = getOtherParticipant(conv);
+              const other = getOtherParticipant(conv, user);
               const active = activeConversation?._id === conv._id;
               return (
                 <motion.button
@@ -244,7 +249,7 @@ const ChatPage = () => {
               {/* Mobile Back Button */}
               <button onClick={() => setActiveConversation(null)} className="md:hidden p-1 text-muted hover:text-text"><MdArrowBack size={22} /></button>
               {(() => {
-                const other = getOtherParticipant(activeConversation);
+                const other = getOtherParticipant(activeConversation, user);
                 return (
                   <>
                     <Avatar src={other?.avatar} name={other?.name || activeConversation.groupName} size="md" online={other?.isOnline} />
