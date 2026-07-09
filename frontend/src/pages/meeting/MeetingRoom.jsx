@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
 import {
   MdMic, MdMicOff, MdVideocam, MdVideocamOff, MdScreenShare, MdStopScreenShare,
   MdCallEnd, MdChat, MdPeople, MdPanTool, MdMoreVert, MdContentCopy, MdClose,
-  MdSend, MdEmojiEmotions
+  MdSend, MdEmojiEmotions, MdArrowBack
 } from 'react-icons/md';
 import { BsRecordCircle, BsGrid, BsLayoutSidebarReverse } from 'react-icons/bs';
 import { toast } from 'react-hot-toast';
@@ -27,28 +27,22 @@ const ICE_SERVERS = {
 };
 
 // Remote Video Component
-const RemoteVideo = ({ peer, peerId }) => {
+const RemoteVideo = ({ stream }) => {
   const videoRef = useRef(null);
-  const isPresent = useIsPresent();
 
   useEffect(() => {
-    peer.on('stream', (stream) => {
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    });
-  }, [peer]);
-
-  useEffect(() => {
-    if (!isPresent) {
-      // Optional: Add exit animations or cleanup
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
     }
-  }, [isPresent]);
+  }, [stream]);
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] group">
-      <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-    </div>
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      className="w-full h-full object-cover"
+    />
   );
 };
 
@@ -344,11 +338,11 @@ const MeetingRoom = () => {
       {/* Main Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video Grid */}
-        <div className="flex-1 p-4 overflow-hidden">
-          <div className={`h-full grid gap-3 ${
+        <div className="flex-1 p-2 md:p-4 overflow-hidden">
+          <div className={`h-full grid gap-2 md:gap-3 ${
             participants.length < 1 ? 'grid-cols-1' :
             participants.length < 2 ? 'grid-cols-2' :
-            participants.length < 4 ? 'grid-cols-2' :
+            participants.length < 4 ? 'grid-cols-2 grid-rows-2' :
             participants.length < 6 ? 'grid-cols-3' : 'grid-cols-4'
           }`}>
             {/* Local Video */}
@@ -376,7 +370,7 @@ const MeetingRoom = () => {
             {/* Remote Participants (placeholder tiles) */}
             {participants.map(({ userId, user: pUser, peer, stream }) => (
               <div key={userId} className="relative rounded-2xl overflow-hidden bg-[#1a1a2e] flex items-center justify-center">
-                {stream ? <video srcObject={stream} autoPlay playsInline className="w-full h-full object-cover" /> : <Avatar src={pUser.avatar} name={pUser.name} size="xl" />}
+                {stream ? <RemoteVideo stream={stream} /> : <Avatar src={pUser.avatar} name={pUser.name} size="xl" />}
                 <div className="absolute bottom-3 left-3 flex items-center gap-2">
                   <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-full">{pUser.name}</span>
                   {pUser.handRaised && <span>✋</span>}
@@ -402,9 +396,9 @@ const MeetingRoom = () => {
             <motion.div
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              className="glass border-l border-white/10 flex flex-col overflow-hidden shrink-0"
-            >
+              exit={{ width: 0, opacity: 0 }}              
+              className="absolute md:relative top-0 right-0 h-full w-full md:w-80 glass border-l border-white/10 flex flex-col overflow-hidden shrink-0 z-20"
+            > 
               <div className="flex items-center justify-between p-4 border-b border-white/10">
                 <h3 className="font-semibold text-white capitalize">{activePanel}</h3>
                 <button onClick={() => setActivePanel(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400">
@@ -492,7 +486,7 @@ const MeetingRoom = () => {
       </div>
 
       {/* Controls Bar */}
-      <div className="glass border-t border-white/10 px-4 py-4 flex items-center justify-center gap-3 shrink-0">
+      <div className="glass border-t border-white/10 px-4 py-3 flex items-center justify-center gap-2 md:gap-3 flex-wrap shrink-0">
         {/* Audio */}
         <motion.button
           whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}

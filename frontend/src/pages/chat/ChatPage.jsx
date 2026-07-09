@@ -177,10 +177,10 @@ const ChatPage = () => {
 
   return (
     <Sidebar>
-      <div className="flex rounded-2xl overflow-hidden glass border border-white/10" style={{ height: 'calc(100dvh - 8rem)' }}>
+      <div className="flex rounded-2xl overflow-hidden glass border border-white/10 h-full md:h-[calc(100dvh-8rem)]">
         {/* Conversations List */}
-        <div className="w-80 shrink-0 border-r border-white/10 flex flex-col">
-          <div className="p-4 border-b border-white/10">
+        <div className={`w-full md:w-80 shrink-0 md:border-r border-white/10 flex flex-col ${activeConversation ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-4 border-b border-white/10 shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-white">Messages</h2>
               <Button size="icon" variant="ghost" onClick={() => setShowNewChat(true)}>
@@ -236,10 +236,13 @@ const ChatPage = () => {
         </div>
 
         {/* Chat Area */}
-        {activeConversation ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex-col overflow-hidden ${activeConversation ? 'flex' : 'hidden md:flex'}`}>
+          {activeConversation ? (
+            <>
             {/* Chat Header */}
-            <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+            <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3 shrink-0">
+              {/* Mobile Back Button */}
+              <button onClick={() => setActiveConversation(null)} className="md:hidden p-1 text-slate-400 hover:text-white"><MdArrowBack size={22} /></button>
               {(() => {
                 const other = getOtherParticipant(activeConversation);
                 return (
@@ -380,30 +383,31 @@ const ChatPage = () => {
                 )}
               </AnimatePresence>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-20 h-20 gradient-bg rounded-3xl flex items-center justify-center mx-auto mb-4 float">
-                <MdSend size={36} className="text-white" />
+            </>
+          ) : (
+            <div className="flex-1 items-center justify-center hidden md:flex">
+              <div className="text-center">
+                <div className="w-20 h-20 gradient-bg rounded-3xl flex items-center justify-center mx-auto mb-4 float">
+                  <MdSend size={36} className="text-white" />
+                </div>
+                <h3 className="text-white font-bold text-xl mb-2">Your Messages</h3>
+                <p className="text-slate-400 text-sm">Select a conversation or start a new one</p>
+                <Button className="mt-4" onClick={() => setShowNewChat(true)}>
+                  <MdAdd size={18} /> New Message
+                </Button>
               </div>
-              <h3 className="text-white font-bold text-xl mb-2">Your Messages</h3>
-              <p className="text-slate-400 text-sm">Select a conversation or start a new one</p>
-              <Button className="mt-4" onClick={() => setShowNewChat(true)}>
-                <MdAdd size={18} /> New Message
-              </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
       </div>
 
       {/* New Chat Modal */}
       <Modal isOpen={showNewChat} onClose={() => { setShowNewChat(false); setSearchQuery(''); setSearchUsers([]); }} title="New Message">
-        <div className="space-y-4">
+        <div className="space-y-4 w-[90vw] md:w-full">
           <input
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             placeholder="Search users..."
             value={searchQuery}
             onChange={e => searchForUsers(e.target.value)}
