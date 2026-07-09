@@ -149,7 +149,7 @@ const ChatPage = () => {
     setShowNewChat(false);
   };
 
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const startVideoCallFromChat = async () => {
     const other = getOtherParticipant(activeConversation);
